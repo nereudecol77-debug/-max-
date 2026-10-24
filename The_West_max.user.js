@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         The West -max- | Piloto 2.0
+// @name         The West -max- | Piloto 2.1
 // @namespace    https://the-west-scripts.github.io/
-// @version      2.0.0
+// @version      2.1.0
 // @description  Piloto: trabalho unico, fila, duracao, bonus diario e diagnostico.
 // @match        https://*.the-west.com.br/game.php*
 // @match        https://*.the-west.net/game.php*
@@ -16,7 +16,7 @@
 (function(){
  'use strict';
  const KEY='thewest_max_piloto_v13' // Mantem configuracoes da v1.3;
- const defaults={auto:true,duration:15,job:null,bonus:true,rest:true,healthMin:20};
+ const defaults={auto:true,duration:15,job:null,bonus:true,rest:true,healthMin:20,restTownId:""};
  let config={...defaults};
  try{config={...defaults,...JSON.parse(localStorage.getItem(KEY)||'{}')}}catch(e){}
  const save=()=>localStorage.setItem(KEY,JSON.stringify(config));
@@ -133,7 +133,7 @@
  // Nao cancela trabalhos nem repete um descanso ja presente na fila.
  function isSleepTask(t){
   if(!t||typeof t!=='object')return false;
-  const parts=[t,t.data,t.params,t.task,t.extra].filter(v=>v&&typeof v==='object');
+  const parts=[t,t.data,t.params,t.task,t.extra,t.data_obj,t.task&&t.task.data_obj].filter(v=>v&&typeof v==='object');
   return parts.some(v=>{
    const values=[v.type,v.taskType,v.name,v.action,v.task_type,v.className,v.constructor&&v.constructor.name];
    return values.some(x=>typeof x==='string'&&/sleep|dormir|descanso|fortsleep/i.test(x));
@@ -152,17 +152,17 @@
    return;
   }
   const town=Character.homeTown;
-  const townId=Number(town&&town.town_id);
+  const townId=Number(config.restTownId || (town&&(town.town_id||town.id)));
   const Sleep=unsafeWindow.TaskSleep;
   if(!Number.isFinite(townId)||townId<=0||typeof Sleep!=='function'||typeof TaskQueue.add!=='function'){
-   info('Descanso indisponivel: cidade natal ou API TaskSleep nao reconhecida.');
+   info('Descanso indisponivel: configure ID de cidade acessivel ou API TaskSleep ausente.');
    return;
   }
   if(q.length>=LIMIT){reportComplete('Fila cheia: '+q.length+'/'+LIMIT);return}
   try{
    restPending=true;restRequestedAt=Date.now();
    TaskQueue.add(new Sleep(townId,'luxurious_apartment'));
-   info('Solicitado descanso de 8h na cidade natal; aguardando confirmacao.');
+   info('Solicitado descanso de 8h na cidade '+townId+'; aguardando confirmacao.');
    setTimeout(()=>{
     const now=Array.isArray(TaskQueue.queue)?TaskQueue.queue:[];
     if(now.length>q.length || now.some(isSleepTask)){
@@ -247,7 +247,7 @@
  function render(){
   if(document.getElementById('twmax-window'))return;
   const host=document.createElement('div');host.id='twmax-window';host.style.cssText='position:fixed;top:90px;right:20px;z-index:999999;background:#f5e6c7;color:#34291c;border:3px solid #74512f;padding:12px;width:370px;max-height:75vh;overflow:auto;font:13px Arial;box-shadow:0 5px 20px #0007';
-  host.innerHTML='<div style="display:flex;justify-content:space-between"><b>The West -max- | Piloto 2.0</b><button id="twmax-hide">×</button></div><div id="twmax-tabs" style="margin:12px 0"></div><div id="twmax-content"></div><hr><small id="twmax-status">Aguardando o jogo...</small>';
+  host.innerHTML='<div style="display:flex;justify-content:space-between"><b>The West -max- | Piloto 2.1</b><button id="twmax-hide">×</button></div><div id="twmax-tabs" style="margin:12px 0"></div><div id="twmax-content"></div><hr><small id="twmax-status">Aguardando o jogo...</small>';
   document.body.appendChild(host);
   const tabs=['Trabalhos','Trabalhos selecionados','Conjuntos','Configurações','Bônus'];
   const bar=host.querySelector('#twmax-tabs'),body=host.querySelector('#twmax-content');
@@ -255,7 +255,7 @@
    if(n===0){const list=jobs();body.innerHTML='<p>Selecione um trabalho (um por conta).</p><input id="twmax-filter" placeholder="Filtrar trabalhos" style="width:95%"><div id="twmax-joblist" style="max-height:230px;overflow:auto"></div>';const input=body.querySelector('#twmax-filter'),target=body.querySelector('#twmax-joblist');const draw=()=>{target.innerHTML='';list.filter(j=>j.name.toLowerCase().includes(input.value.toLowerCase())).slice(0,100).forEach(j=>{const b=document.createElement('button');b.textContent=j.name+' ['+j.id+']';b.style.cssText='display:block;width:100%;text-align:left;margin:2px 0';b.onclick=()=>{config.job={id:j.id,name:j.name};chosenDestination=null;failedAttempts=0;lastReport='';save();tab(1)};target.appendChild(b)});if(!list.length)target.textContent='Trabalhos ainda nao carregados. Reabra a aba depois de entrar no mapa.'};input.oninput=draw;draw()}
    if(n===1){body.innerHTML='<p>Trabalho fixo: <b>'+(config.job?config.job.name:'Nenhum')+'</b></p><button id="twmax-remove">Remover selecao</button>';body.querySelector('button').onclick=()=>{config.job=null;chosenDestination=null;failedAttempts=0;lastReport='';save();tab(1)}}
    if(n===2)body.innerHTML='<p>Conjuntos: integracao com conjuntos do jogo ainda nao implementada neste piloto. Nao altera equipamentos automaticamente.</p>';
-   if(n===3){body.innerHTML='<label>Duracao dos trabalhos: <select id="twmax-duration"><option value="15">15 segundos</option><option value="3600">1 hora</option></select></label><p><label><input type="checkbox" id="twmax-auto"> Iniciar automaticamente ao entrar no jogo</label></p><p><label><input type="checkbox" id="twmax-rest"> Tentar descanso sem consumivel de energia</label></p><p>Saude minima (%): <input type="number" min="1" max="100" id="twmax-health" style="width:60px"></p><button id="twmax-save">Aplicar</button><p><small>Descanso piloto usa a cidade natal. A busca pela cidade mais proxima ainda nao esta implementada.</small></p>';body.querySelector('#twmax-duration').value=config.duration;body.querySelector('#twmax-auto').checked=config.auto;body.querySelector('#twmax-rest').checked=config.rest;body.querySelector('#twmax-health').value=config.healthMin;body.querySelector('#twmax-save').onclick=()=>{config.duration=Number(body.querySelector('#twmax-duration').value);config.auto=body.querySelector('#twmax-auto').checked;config.rest=body.querySelector('#twmax-rest').checked;config.healthMin=Number(body.querySelector('#twmax-health').value);failedAttempts=0;lastReport='';save();info('Configuracoes salvas neste perfil e origem.');tick()}}
+   if(n===3){body.innerHTML='<label>Duracao dos trabalhos: <select id="twmax-duration"><option value="15">15 segundos</option><option value="3600">1 hora</option></select></label><p><label><input type="checkbox" id="twmax-auto"> Iniciar automaticamente ao entrar no jogo</label></p><p><label><input type="checkbox" id="twmax-rest"> Tentar descanso sem consumivel de energia</label></p><p>Saude minima (%): <input type="number" min="1" max="100" id="twmax-health" style="width:60px"></p><p>ID cidade para dormir (opcional): <input type="number" min="1" id="twmax-town" style="width:95px" placeholder="Ex.: 3498"></p><button id="twmax-save">Aplicar</button><p><small>Sem cidade natal: informe ID de cidade com hotel acessivel. Busca automatica ainda nao implementada.</small></p>';body.querySelector('#twmax-duration').value=config.duration;body.querySelector('#twmax-auto').checked=config.auto;body.querySelector('#twmax-rest').checked=config.rest;body.querySelector('#twmax-health').value=config.healthMin;body.querySelector('#twmax-town').value=config.restTownId||'';body.querySelector('#twmax-save').onclick=()=>{config.duration=Number(body.querySelector('#twmax-duration').value);config.auto=body.querySelector('#twmax-auto').checked;config.rest=body.querySelector('#twmax-rest').checked;config.healthMin=Number(body.querySelector('#twmax-health').value);config.restTownId=body.querySelector('#twmax-town').value.trim();failedAttempts=0;lastReport='';save();info('Configuracoes salvas neste perfil e origem.');tick()}}
    if(n===4){body.innerHTML='<label><input type="checkbox" id="twmax-bonus"> Receber automaticamente o bonus diario</label><p>As demais opcoes de Bonus estao planejadas para a proxima etapa.</p>';body.querySelector('input').checked=config.bonus;body.querySelector('input').onchange=e=>{config.bonus=e.target.checked;save()}}
   }
   host.querySelector('#twmax-hide').onclick=()=>host.style.display='none';tab(3)

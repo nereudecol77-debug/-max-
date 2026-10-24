@@ -1,5 +1,5 @@
 {
-  "versao": "2.0",
+  "versao": "2.1",
   "arquivo": "",
-  "notas": "Pasta persistente, pausa entre voltas, alerta de falhas e consulta de atualizacoes. Publicar link de GitHub Release no campo arquivo quando disponivel."
+  "notas": "v2.1: descanso em cidade configurada para contas sem cidade natal. Busca automatica ainda nao implementada."
 }
