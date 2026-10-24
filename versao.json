@@ -1,5 +1,5 @@
 {
-  "versao": "1.9",
+  "versao": "2.0",
   "arquivo": "",
-  "notas": "Versao atual do painel The West -max-"
+  "notas": "Pasta persistente, pausa entre voltas, alerta de falhas e consulta de atualizacoes. Publicar link de GitHub Release no campo arquivo quando disponivel."
 }
