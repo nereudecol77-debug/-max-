@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         The West -max- | Piloto 2.1
 // @namespace    https://the-west-scripts.github.io/
-// @version      2.1.0
+// @version      1.1.0
 // @description  Piloto: trabalho unico, fila, duracao, bonus diario e diagnostico.
 // @match        https://*.the-west.com.br/game.php*
 // @match        https://*.the-west.net/game.php*
